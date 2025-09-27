@@ -5,10 +5,10 @@ export async function GET(request: NextRequest) {
     // Get agent ID from query parameters
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('agent_id') || process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
-    
+
     // Get API key from environment variables
     const apiKey = process.env.ELEVENLABS_API_KEY;
-    
+
     if (!apiKey) {
       return NextResponse.json(
         { error: 'ElevenLabs API key not configured' },
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Generate signed URL using correct ElevenLabs API endpoint
+    // Generate signed URL using ElevenLabs GET endpoint only
     const response = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
       {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    
+
     return NextResponse.json({ signedUrl: data.signed_url });
   } catch (error) {
     console.error('Error generating signed URL:', error);

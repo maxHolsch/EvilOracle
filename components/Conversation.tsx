@@ -14,18 +14,29 @@ export default function Conversation({ agentId }: ConversationProps) {
   const [showInfoCard, setShowInfoCard] = useState(true);
   const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
   const [playerName, setPlayerName] = useState('');
+  const [topicToDiscuss, setTopicToDiscuss] = useState('');
 
-  // Load player name from localStorage on component mount
+  // Load player name and topic from localStorage on component mount
   useEffect(() => {
     const storedPlayerName = localStorage.getItem('player_name');
     if (storedPlayerName) {
       setPlayerName(storedPlayerName);
+    }
+    const storedTopic = localStorage.getItem('topic_to_discuss');
+    if (storedTopic) {
+      setTopicToDiscuss(storedTopic);
     }
   }, []);
 
   const handleSavePlayerName = () => {
     if (playerName.trim()) {
       localStorage.setItem('player_name', playerName.trim());
+    }
+  };
+
+  const handleSaveTopic = () => {
+    if (topicToDiscuss.trim()) {
+      localStorage.setItem('topic_to_discuss', topicToDiscuss.trim());
     }
   };
 
@@ -80,11 +91,11 @@ export default function Conversation({ agentId }: ConversationProps) {
       const response = await fetch(`/api/get-signed-url?agent_id=${agentId}`, {
         method: 'GET',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to get signed URL: ${response.statusText}`);
       }
-      
+
       const { signedUrl } = await response.json();
       return signedUrl;
     } catch (error) {
@@ -97,20 +108,28 @@ export default function Conversation({ agentId }: ConversationProps) {
     try {
       // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+
       // Get signed URL from our API route
       const signedUrl = await getSignedUrl();
 
-      // Start the conversation with the signed URL
+      // Prepare dynamic variables for ElevenLabs
+      const dynamicVariables: Record<string, string> = {};
+      if (topicToDiscuss.trim()) {
+        dynamicVariables.topic_to_discuss = topicToDiscuss.trim();
+        console.log('Passing dynamic variables to conversation:', dynamicVariables);
+      }
+
+      // Start the conversation with the signed URL and dynamic variables
       await conversation.startSession({
         signedUrl,
+        ...(Object.keys(dynamicVariables).length > 0 && { dynamicVariables }),
       });
-      
+
       console.log('Conversation started successfully');
     } catch (error) {
       console.error('Failed to start conversation:', error);
     }
-  }, [conversation, agentId]);
+  }, [conversation, agentId, topicToDiscuss]);
 
   const stopConversation = useCallback(async () => {
     try {
@@ -233,6 +252,29 @@ export default function Conversation({ agentId }: ConversationProps) {
               )}
             </div>
             
+            {/* Topic to Discuss Entry */}
+            <div className="mt-8 border-t border-red-800 pt-6">
+              <h3 className="text-lg font-semibold text-red-400 mb-4">💬 Topic for Discussion (Required)</h3>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={topicToDiscuss}
+                  onChange={(e) => setTopicToDiscuss(e.target.value)}
+                  placeholder="What topic should Annatar try to convince you about?"
+                  className="flex-1 bg-gray-900 text-white px-4 py-2 rounded-lg evil-border focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+                <button
+                  onClick={handleSaveTopic}
+                  className="px-4 py-2 bg-red-800 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+              <p className="text-red-300 text-sm mt-2">
+                Example: "higher education should be dismantled", "vaccines are harmful", "climate change is a hoax"
+              </p>
+            </div>
+
             {/* Player Name Entry */}
             <div className="mt-8 border-t border-red-800 pt-6">
               <h3 className="text-lg font-semibold text-red-400 mb-4">👤 Enter Your Name (Optional)</h3>
@@ -257,12 +299,19 @@ export default function Conversation({ agentId }: ConversationProps) {
               <button
                 onClick={() => {
                   handleSavePlayerName();
+                  handleSaveTopic();
                   setShowInfoCard(false);
                 }}
-                className="evil-button px-8 py-3 rounded-lg text-lg font-bold"
+                disabled={!topicToDiscuss.trim()}
+                className="evil-button px-8 py-3 rounded-lg text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 🔥 BEGIN THE DEBATE 🔥
               </button>
+              {!topicToDiscuss.trim() && (
+                <p className="text-red-400 text-sm mt-2">
+                  Please enter a topic for discussion before beginning
+                </p>
+              )}
             </div>
           </div>
         </div>
